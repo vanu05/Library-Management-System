@@ -3,13 +3,22 @@ import sqlite3
 class BookRepository:
     def __init__(self, db_path='test.db'):
         self.db_path = db_path
-        self.initialize()
+        if db_path == ':memory:':
+            self.conn = sqlite3.connect(':memory:')
+            self._initialize_conn(self.conn)
+        else:
+            self.conn = None
 
     def _connect(self):
+        if self.conn is not None:
+            return self.conn
         return sqlite3.connect(self.db_path)
 
-    def initialize(self):
-        conn = self._connect()
+    def _close(self, conn):
+        if self.conn is None:
+            conn.close()
+
+    def _initialize_conn(self, conn):
         conn.execute('''CREATE TABLE IF NOT EXISTS book_info
             (ID VARCHAR PRIMARY KEY NOT NULL,
             TITLE VARTEXT NOT NULL,
@@ -24,7 +33,11 @@ class BookRepository:
             RETURN_DATE DATE NOT NULL,
             PRIMARY KEY (BOOK_ID, STUDENT_ID))''')
         conn.commit()
-        conn.close()
+
+    def initialize(self):
+        conn = self._connect()
+        self._initialize_conn(conn)
+        self._close(conn)
 
     def add_book(self, book_id, title, author, genre, copies, location):
         conn = self._connect()
@@ -33,7 +46,7 @@ class BookRepository:
             (book_id, title, author, genre, copies, location)
         )
         conn.commit()
-        conn.close()
+        self._close(conn)
 
     def get_book(self, book_id):
         conn = self._connect()
@@ -41,14 +54,14 @@ class BookRepository:
             "SELECT * FROM book_info WHERE ID=?", (book_id,)
         )
         result = cursor.fetchone()
-        conn.close()
+        self._close(conn)
         return result
 
     def get_all_books(self):
         conn = self._connect()
         cursor = conn.execute("SELECT * FROM book_info")
         result = cursor.fetchall()
-        conn.close()
+        self._close(conn)
         return result
 
     def search_books(self, term):
@@ -58,14 +71,14 @@ class BookRepository:
             (term, term, term, term)
         )
         result = cursor.fetchall()
-        conn.close()
+        self._close(conn)
         return result
 
     def delete_book(self, book_id):
         conn = self._connect()
         conn.execute("DELETE FROM book_info WHERE ID=?", (book_id,))
         conn.commit()
-        conn.close()
+        self._close(conn)
 
     def update_copies(self, book_id, amount):
         conn = self._connect()
@@ -74,7 +87,7 @@ class BookRepository:
             (amount, book_id)
         )
         conn.commit()
-        conn.close()
+        self._close(conn)
 
     def is_book_issued(self, book_id):
         conn = self._connect()
@@ -82,7 +95,7 @@ class BookRepository:
             "SELECT * FROM book_issued WHERE BOOK_ID=?", (book_id,)
         )
         result = cursor.fetchall()
-        conn.close()
+        self._close(conn)
         return len(result) > 0
 
     def issue_book(self, book_id, student_id):
@@ -95,7 +108,7 @@ class BookRepository:
             "UPDATE book_info SET COPIES=COPIES-1 WHERE ID=?", (book_id,)
         )
         conn.commit()
-        conn.close()
+        self._close(conn)
 
     def return_book(self, book_id, student_id):
         conn = self._connect()
@@ -107,7 +120,7 @@ class BookRepository:
             "UPDATE book_info SET COPIES=COPIES+1 WHERE ID=?", (book_id,)
         )
         conn.commit()
-        conn.close()
+        self._close(conn)
 
     def get_issued_by(self, term):
         conn = self._connect()
@@ -116,12 +129,12 @@ class BookRepository:
             (term, term)
         )
         result = cursor.fetchall()
-        conn.close()
+        self._close(conn)
         return result
 
     def get_all_issued(self):
         conn = self._connect()
         cursor = conn.execute("SELECT * FROM book_issued")
         result = cursor.fetchall()
-        conn.close()
+        self._close(conn)
         return result
