@@ -5,8 +5,9 @@ from src.service import LibraryService
 @pytest.fixture
 def service():
     repo = BookRepository(db_path=':memory:')
-    repo.initialize()
-    return LibraryService(repository=repo)
+    repo.initialize()  # cria as tabelas no banco em memória
+    svc = LibraryService(repository=repo)
+    return svc
 
 def test_adicionar_e_buscar_livro(service):
     service.add_book("001", "Python", "Autor", "Tech", 3, "A1")
